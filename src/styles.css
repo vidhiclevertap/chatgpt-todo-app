@@ -38,3 +38,9 @@ li.completed span {
   text-decoration: line-through;
   color: #888;
 }
+
+.user-info {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 10px;
+}
