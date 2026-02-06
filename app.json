@@ -1,6 +1,0 @@
-{
-  "name": "Todo App",
-  "description": "A simple Todo app built as a ChatGPT Web Component",
-  "version": "1.0.0",
-  "entrypoint": "public/index.html"
-}
