@@ -13,7 +13,7 @@ class TodoApp extends HTMLElement {
   }
 
   async connectedCallback() {
-    const css = await fetch("/src/styles.css").then(res => res.text());
+    const css = await fetch("../src/styles.css").then(res => res.text());
     this.render(css);
   }
 
