@@ -1,0 +1,40 @@
+#app {
+  font-family: Arial, sans-serif;
+  background: #ffffff;
+  padding: 16px;
+  border-radius: 8px;
+  max-width: 400px;
+}
+
+.todo-input {
+  display: flex;
+  gap: 8px;
+}
+
+input {
+  flex: 1;
+  padding: 8px;
+}
+
+button {
+  cursor: pointer;
+  padding: 6px 10px;
+}
+
+ul {
+  list-style: none;
+  padding: 0;
+  margin-top: 16px;
+}
+
+li {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px;
+  border-bottom: 1px solid #eee;
+}
+
+li.completed span {
+  text-decoration: line-through;
+  color: #888;
+}
