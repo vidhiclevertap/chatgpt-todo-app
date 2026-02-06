@@ -47,27 +47,29 @@ class TodoApp extends HTMLElement {
   /* ---------- CLEVERTAP LOADER ---------- */
 
   loadCleverTap() {
-    return new Promise((resolve) => {
-      if (window.clevertap) {
-        return resolve(window.clevertap);
-      }
+  return new Promise((resolve) => {
+    if (window.clevertap) {
+      return resolve(window.clevertap);
+    }
 
-      window.clevertap = {
-        event: [],
-        profile: [],
-        account: [],
-        onUserLogin: []
-      };
+    window.clevertap = {
+      event: [],
+      profile: [],
+      account: [],
+      onUserLogin: [],
+      region: "us" // 👈 REQUIRED
+    };
 
-      const script = document.createElement("script");
-      script.type = "text/javascript";
-      script.async = true;
-      script.src = "https://static.clevertap.com/js/a.js";
+    const script = document.createElement("script");
+    script.type = "text/javascript";
+    script.async = true;
+    script.src = "https://static.clevertap.com/js/a.js";
 
-      script.onload = () => resolve(window.clevertap);
-      document.head.appendChild(script);
-    });
-  }
+    script.onload = () => resolve(window.clevertap);
+    document.head.appendChild(script);
+  });
+}
+
 
   /* ---------- RENDER ---------- */
 
