@@ -56,8 +56,7 @@ class TodoApp extends HTMLElement {
       event: [],
       profile: [],
       account: [],
-      onUserLogin: [],
-      region: "us" // 👈 REQUIRED
+      onUserLogin: []
     };
 
     const script = document.createElement("script");
@@ -69,6 +68,7 @@ class TodoApp extends HTMLElement {
     document.head.appendChild(script);
   });
 }
+
 
 
   /* ---------- RENDER ---------- */
