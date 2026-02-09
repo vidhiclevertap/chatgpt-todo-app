@@ -111,27 +111,31 @@ class TodoApp extends HTMLElement {
   }
 
   handleLogin() {
-    const email = this.shadowRoot
-      .getElementById("emailInput")
-      .value.trim();
+  const email = this.shadowRoot
+    .getElementById("emailInput")
+    .value.trim();
 
-    if (!email || !email.includes("@")) return;
+  if (!email || !email.includes("@")) return;
 
-    this.userEmail = email;
+  this.userEmail = email;
 
-    if (this.ctInitialized) {
-      this.clevertap.onUserLogin.push({
-        Site: {
-          Identity: email,
-          Email: email
-        }
-      });
+  if (this.ctInitialized) {
+    this.clevertap.onUserLogin.push({
+      Site: {
+        Identity: email,
+        Email: email
+      }
+    });
 
-      this.clevertap.event.push("User Logged In");
-    }
+    this.clevertap.event.push("User Logged In");
 
-    this.render();
+    // ✅ THIS IS THE MISSING PIECE
+    this.clevertap.getAllNativeDisplay();
   }
+
+  this.render();
+}
+
 
   /* ---------- TODO ---------- */
 
