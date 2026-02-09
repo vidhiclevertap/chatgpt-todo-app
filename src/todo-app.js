@@ -39,34 +39,45 @@ class TodoApp extends HTMLElement {
   /* ---------- CLEVERTAP LOADER ---------- */
 
   loadCleverTap() {
-    return new Promise(resolve => {
-      if (window.clevertap?.account?.length) {
-        return resolve(window.clevertap);
-      }
+  return new Promise(resolve => {
+    if (window.clevertap?.account?.length) {
+      return resolve(window.clevertap);
+    }
 
-      window.clevertap = {
-        event: [],
-        profile: [],
-        account: [],
-        onUserLogin: [],
-        notifications: [],
-        privacy: [],
-        region: "us1" // US account
-      };
+    window.clevertap = {
+      event: [],
+      profile: [],
+      account: [],
+      onUserLogin: [],
+      notifications: [],
+      privacy: [],
+      region: "us1"
+    };
 
-      window.clevertap.account.push({
-        id: "848-6W6-WR7Z"
-      });
-
-      const s = document.createElement("script");
-      s.async = true;
-      s.src =
-        "https://d2r1yp2w7bby2u.cloudfront.net/js/clevertap.min.js";
-
-      s.onload = () => resolve(window.clevertap);
-      document.head.appendChild(s);
+    // ✅ REQUIRED
+    window.clevertap.notifications.push({
+      webPush: false
     });
-  }
+
+    window.clevertap.account.push({
+      id: "848-6W6-WR7Z"
+    });
+
+    const s = document.createElement("script");
+    s.async = true;
+    s.src =
+      "https://d2r1yp2w7bby2u.cloudfront.net/js/clevertap.min.js";
+
+    s.onload = () => {
+      // ✅ REQUIRED: fetch native display payloads
+      window.clevertap.getAllNativeDisplay?.();
+      resolve(window.clevertap);
+    };
+
+    document.head.appendChild(s);
+  });
+}
+ 
 
   /* ---------- RENDER ---------- */
 
