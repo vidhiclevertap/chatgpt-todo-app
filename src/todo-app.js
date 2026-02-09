@@ -11,34 +11,32 @@ class TodoApp extends HTMLElement {
     this.userEmail = null;
     this.css = "";
 
+    // CleverTap
     this.clevertap = null;
     this.ctInitialized = false;
+
+    // 🔑 Popup guard (important)
+    this.popupTriggered = false;
   }
+
+  /* ---------- INIT ---------- */
 
   async connectedCallback() {
     try {
-      // Load CSS
       this.css = await fetch(
         new URL("./styles.css", import.meta.url)
       ).then(res => res.text());
 
-      // Render UI FIRST (never block UI)
-      this.render();
-
-      // Load CleverTap async
       this.clevertap = await this.loadCleverTap();
       this.ctInitialized = true;
 
-      // Setup Native Display AFTER CT loads
-      this.setupNativeDisplay();
-
+      this.render();
     } catch (e) {
-      console.error("Init failed", e);
-      this.render(); // still render UI
+      console.error("Todo App init failed", e);
     }
   }
 
-  /* ---------- CLEVERTAP ---------- */
+  /* ---------- CLEVERTAP LOADER ---------- */
 
   loadCleverTap() {
     return new Promise(resolve => {
@@ -53,7 +51,7 @@ class TodoApp extends HTMLElement {
         onUserLogin: [],
         notifications: [],
         privacy: [],
-        region: "us1"
+        region: "us1" // US account
       };
 
       window.clevertap.account.push({
@@ -106,13 +104,16 @@ class TodoApp extends HTMLElement {
       .getElementById("emailInput")
       .value.trim();
 
-    if (!email) return;
+    if (!email || !email.includes("@")) return;
 
     this.userEmail = email;
 
     if (this.ctInitialized) {
       this.clevertap.onUserLogin.push({
-        Site: { Identity: email, Email: email }
+        Site: {
+          Identity: email,
+          Email: email
+        }
       });
 
       this.clevertap.event.push("User Logged In");
@@ -140,63 +141,40 @@ class TodoApp extends HTMLElement {
 
     this.shadowRoot
       .getElementById("addTodoBtn")
-      .addEventListener("click", () => {
-        const input = this.shadowRoot.getElementById("todoInput");
-        if (!input.value) return;
+      .addEventListener("click", () => this.handleAddTodo());
+  }
 
-        addTodo(input.value);
+  handleAddTodo() {
+    const input = this.shadowRoot.getElementById("todoInput");
+    const value = input.value.trim();
+    if (!value) return;
 
-        if (this.ctInitialized) {
-          this.clevertap.event.push("Todo Added", {
-            task: input.value
-          });
-        }
+    addTodo(value);
 
-        input.value = "";
-        this.renderTodos();
-      });
+    // 📊 Analytics event
+    this.clevertap?.event.push("Todo Added", {
+      task: value
+    });
+
+    // ⭐ Web Popup trigger (ONLY ONCE)
+    if (!this.popupTriggered) {
+      this.clevertap?.event.push("Todo Created Popup Trigger");
+      this.popupTriggered = true;
+    }
+
+    input.value = "";
+    this.renderTodos();
   }
 
   renderTodos() {
     const list = this.shadowRoot.getElementById("todoList");
     list.innerHTML = "";
 
-    getTodos().forEach(t => {
+    getTodos().forEach(todo => {
       const li = document.createElement("li");
-      li.textContent = t.text;
+      li.textContent = todo.text;
       list.appendChild(li);
     });
-  }
-
-  /* ---------- NATIVE DISPLAY (SAFE ADD-ON) ---------- */
-
-  setupNativeDisplay() {
-    // Create container OUTSIDE shadow DOM
-    if (!document.querySelector(".native-card")) {
-      const div = document.createElement("div");
-      div.className = "native-card";
-      div.style.minHeight = "400px";
-      div.style.margin = "16px";
-      document.body.prepend(div);
-    }
-
-    // Listen for Native Display
-    this.clevertap.on("native_display", data => {
-      if (!data || !data.length) return;
-
-      const unit = data[0];
-      const container = document.querySelector(".native-card");
-      if (!container) return;
-
-      container.innerHTML = `
-        <img src="${unit.content.imageUrl}" style="max-width:100%" />
-      `;
-
-      this.clevertap.renderNotificationViewed(unit);
-    });
-
-    // Fetch campaigns
-    this.clevertap.getAllNativeDisplay();
   }
 }
 
