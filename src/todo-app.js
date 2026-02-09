@@ -84,7 +84,7 @@ class TodoApp extends HTMLElement {
 
     app.innerHTML = `
       <h1>🔐 Login</h1>
-      <input id="emailInput" type="email" />
+      <input id="emailInput" type="email" placeholder="you@example.com" />
       <button id="loginBtn">Continue</button>
     `;
 
@@ -100,6 +100,10 @@ class TodoApp extends HTMLElement {
 
     if (!email) return;
 
+    this.completeLogin(email);
+  }
+
+  completeLogin(email) {
     this.userEmail = email;
 
     if (this.ctInitialized) {
@@ -108,11 +112,6 @@ class TodoApp extends HTMLElement {
       });
 
       this.clevertap.event.push("User Logged In");
-
-      // ⭐ Native Display setup
-      this.createNativeDisplayContainer();
-      this.listenForNativeDisplay();
-      this.clevertap.getAllNativeDisplay();
     }
 
     this.render();
@@ -136,13 +135,25 @@ class TodoApp extends HTMLElement {
       const container = document.querySelector(".native-card");
       if (!container || !data?.length) return;
 
-      const unit = data[0]; // single message campaign
+      const unit = data[0];
 
       container.innerHTML = `
-        <img src="${unit.content.imageUrl}" style="max-width:100%" />
+        <img src="${unit.content.imageUrl}" style="max-width:100%;cursor:pointer;" />
       `;
 
       this.clevertap.renderNotificationViewed(unit);
+    });
+  }
+
+  listenForNativeDisplayClicks() {
+    this.clevertap.on("native_display_click", () => {
+      const emailInput =
+        this.shadowRoot.getElementById("emailInput");
+
+      if (!this.userEmail && emailInput?.value) {
+        this.clevertap.event.push("Native Display CTA Clicked");
+        this.completeLogin(emailInput.value.trim());
+      }
     });
   }
 
