@@ -1,7 +1,4 @@
-import {
-  addTodo,
-  getTodos
-} from "./todo-store.js";
+import { addTodo, getTodos } from "./todo-store.js";
 
 class TodoApp extends HTMLElement {
   constructor() {
@@ -12,17 +9,20 @@ class TodoApp extends HTMLElement {
     this.css = "";
 
     this.clevertap = null;
-    this.ctInitialized = false;
   }
 
   async connectedCallback() {
     try {
       this.css = await fetch(
         new URL("./styles.css", import.meta.url)
-      ).then(res => res.text());
+      ).then(r => r.text());
 
       this.clevertap = await this.loadCleverTap();
-      this.ctInitialized = true;
+
+      // ✅ Native Display must be ready ASAP
+      this.createNativeDisplayContainer();
+      this.registerNativeDisplayListeners();
+      this.clevertap.getAllNativeDisplay();
 
       this.render();
     } catch (e) {
@@ -62,6 +62,39 @@ class TodoApp extends HTMLElement {
     });
   }
 
+  /* ---------- NATIVE DISPLAY ---------- */
+
+  createNativeDisplayContainer() {
+    if (document.querySelector(".native-card")) return;
+
+    const div = document.createElement("div");
+    div.className = "native-card";
+    div.style.minHeight = "400px";
+    div.style.margin = "16px";
+
+    document.body.prepend(div);
+  }
+
+  registerNativeDisplayListeners() {
+    this.clevertap.on("native_display", data => {
+      if (!data?.length) return;
+
+      const unit = data[0];
+      const container = document.querySelector(".native-card");
+      if (!container) return;
+
+      container.innerHTML = `
+        <img src="${unit.content.imageUrl}" style="max-width:100%" />
+      `;
+
+      this.clevertap.renderNotificationViewed(unit);
+    });
+
+    this.clevertap.on("native_display_click", () => {
+      this.clevertap.event.push("Native Display Clicked");
+    });
+  }
+
   /* ---------- RENDER ---------- */
 
   render() {
@@ -70,11 +103,7 @@ class TodoApp extends HTMLElement {
       <div id="app"></div>
     `;
 
-    if (!this.userEmail) {
-      this.renderLogin();
-    } else {
-      this.renderTodo();
-    }
+    this.userEmail ? this.renderTodo() : this.renderLogin();
   }
 
   /* ---------- LOGIN ---------- */
@@ -84,7 +113,7 @@ class TodoApp extends HTMLElement {
 
     app.innerHTML = `
       <h1>🔐 Login</h1>
-      <input id="emailInput" type="email" placeholder="you@example.com" />
+      <input id="emailInput" type="email" />
       <button id="loginBtn">Continue</button>
     `;
 
@@ -100,61 +129,15 @@ class TodoApp extends HTMLElement {
 
     if (!email) return;
 
-    this.completeLogin(email);
-  }
-
-  completeLogin(email) {
     this.userEmail = email;
 
-    if (this.ctInitialized) {
-      this.clevertap.onUserLogin.push({
-        Site: { Identity: email, Email: email }
-      });
+    this.clevertap.onUserLogin.push({
+      Site: { Identity: email, Email: email }
+    });
 
-      this.clevertap.event.push("User Logged In");
-    }
+    this.clevertap.event.push("User Logged In");
 
     this.render();
-  }
-
-  /* ---------- NATIVE DISPLAY ---------- */
-
-  createNativeDisplayContainer() {
-    if (document.querySelector(".native-card")) return;
-
-    const div = document.createElement("div");
-    div.className = "native-card";
-    div.style.minHeight = "400px";
-    div.style.margin = "16px";
-
-    document.body.prepend(div);
-  }
-
-  listenForNativeDisplay() {
-    this.clevertap.on("native_display", data => {
-      const container = document.querySelector(".native-card");
-      if (!container || !data?.length) return;
-
-      const unit = data[0];
-
-      container.innerHTML = `
-        <img src="${unit.content.imageUrl}" style="max-width:100%;cursor:pointer;" />
-      `;
-
-      this.clevertap.renderNotificationViewed(unit);
-    });
-  }
-
-  listenForNativeDisplayClicks() {
-    this.clevertap.on("native_display_click", () => {
-      const emailInput =
-        this.shadowRoot.getElementById("emailInput");
-
-      if (!this.userEmail && emailInput?.value) {
-        this.clevertap.event.push("Native Display CTA Clicked");
-        this.completeLogin(emailInput.value.trim());
-      }
-    });
   }
 
   /* ---------- TODO ---------- */
@@ -180,9 +163,7 @@ class TodoApp extends HTMLElement {
         if (!input.value) return;
 
         addTodo(input.value);
-        this.clevertap?.event.push("Todo Added", {
-          task: input.value
-        });
+        this.clevertap.event.push("Todo Added", { task: input.value });
 
         input.value = "";
         this.renderTodos();
