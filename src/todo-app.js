@@ -33,7 +33,7 @@ class TodoApp extends HTMLElement {
 
       // Initialize CleverTap account
       this.clevertap.account.push({
-        id: "ZWW-WWW-WWRZ" // 👈 replace this
+        id: "848-6W6-WR7Z" // 👈 replace this
       });
 
       this.ctInitialized = true;
@@ -52,14 +52,18 @@ class TodoApp extends HTMLElement {
       return resolve(window.clevertap);
     }
 
+    // Set up the clevertap object with the correct US region
     window.clevertap = {
       event: [],
       profile: [],
       account: [],
       onUserLogin: [],
-      region: "eu" // 👈 REQUIRED (most CleverTap India accounts)
+      notifications: [],
+      privacy: [],
+      region: "us1" // 👈 correct for US account
     };
 
+    // Load the SDK
     const script = document.createElement("script");
     script.type = "text/javascript";
     script.async = true;
