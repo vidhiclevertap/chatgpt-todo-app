@@ -30,10 +30,16 @@ class TodoApp extends HTMLElement {
 
       // Load CleverTap SDK
       this.clevertap = await this.loadCleverTap();
-
-
-
       this.ctInitialized = true;
+
+      // 🔔 Native Display listener
+      document.addEventListener(
+        "CleverTapDisplayUnitsLoaded",
+        (event) => {
+          const units = event?.detail?.units || [];
+          this.renderNativeDisplay(units);
+        }
+      );
 
       this.render();
     } catch (err) {
@@ -43,44 +49,40 @@ class TodoApp extends HTMLElement {
 
   /* ---------- CLEVERTAP LOADER ---------- */
 
- loadCleverTap() {
-  return new Promise((resolve) => {
-    if (window.clevertap && window.clevertap.account?.length) {
-      return resolve(window.clevertap);
-    }
+  loadCleverTap() {
+    return new Promise((resolve) => {
+      if (window.clevertap && window.clevertap.account?.length) {
+        return resolve(window.clevertap);
+      }
 
-    // 1️⃣ Create clevertap object
-    window.clevertap = {
-      event: [],
-      profile: [],
-      account: [],
-      onUserLogin: [],
-      notifications: [],
-      privacy: [],
-      region: "us1" // ✅ US account
-    };
+      window.clevertap = {
+        event: [],
+        profile: [],
+        account: [],
+        onUserLogin: [],
+        notifications: [],
+        privacy: [],
+        region: "us1" // ✅ US account
+      };
 
-    // 2️⃣ PUSH ACCOUNT ID BEFORE SDK LOAD (THIS IS KEY)
-    window.clevertap.account.push({
-      id: "848-6W6-WR7Z"
+      // ⚠️ MUST be pushed before SDK load
+      window.clevertap.account.push({
+        id: "848-6W6-WR7Z"
+      });
+
+      const script = document.createElement("script");
+      script.type = "text/javascript";
+      script.async = true;
+      script.src =
+        (document.location.protocol === "https:"
+          ? "https://d2r1yp2w7bby2u.cloudfront.net"
+          : "http://static.clevertap.com") +
+        "/js/clevertap.min.js";
+
+      script.onload = () => resolve(window.clevertap);
+      document.head.appendChild(script);
     });
-
-    // 3️⃣ Load correct SDK
-    const script = document.createElement("script");
-    script.type = "text/javascript";
-    script.async = true;
-    script.src =
-      (document.location.protocol === "https:"
-        ? "https://d2r1yp2w7bby2u.cloudfront.net"
-        : "http://static.clevertap.com") +
-      "/js/clevertap.min.js";
-
-    script.onload = () => resolve(window.clevertap);
-    document.head.appendChild(script);
-  });
-}
-
-
+  }
 
   /* ---------- RENDER ---------- */
 
@@ -126,7 +128,7 @@ class TodoApp extends HTMLElement {
 
     this.userEmail = email;
 
-    // 🔗 CleverTap identity + login event
+    // 🔗 CleverTap identity
     if (this.ctInitialized && this.clevertap) {
       this.clevertap.onUserLogin.push({
         Site: {
@@ -150,6 +152,9 @@ class TodoApp extends HTMLElement {
       <h1>📝 Todo App</h1>
       <p>Logged in as <b>${this.userEmail}</b></p>
 
+      <!-- 🔔 Native Display Slot -->
+      <div id="nativeDisplay"></div>
+
       <input id="todoInput" placeholder="Add task" />
       <button id="addTodoBtn" type="button">Add</button>
 
@@ -157,7 +162,10 @@ class TodoApp extends HTMLElement {
     `;
 
     this.renderTodos();
+    this.bindTodoActions();
+  }
 
+  bindTodoActions() {
     this.shadowRoot
       .getElementById("addTodoBtn")
       .addEventListener("click", () => {
@@ -181,11 +189,37 @@ class TodoApp extends HTMLElement {
     const list = this.shadowRoot.getElementById("todoList");
     list.innerHTML = "";
 
-    getTodos().forEach((todo, index) => {
+    getTodos().forEach((todo) => {
       const li = document.createElement("li");
       li.textContent = todo.text;
       list.appendChild(li);
     });
+  }
+
+  /* ---------- NATIVE DISPLAY ---------- */
+
+  renderNativeDisplay(units = []) {
+    const container = this.shadowRoot.getElementById("nativeDisplay");
+    if (!container || !units.length) return;
+
+    const unit = units[0]; // first unit for now
+
+    container.innerHTML = `
+      <div class="native-card">
+        ${unit.title ? `<h3>${unit.title}</h3>` : ""}
+        ${unit.message ? `<p>${unit.message}</p>` : ""}
+        ${
+          unit.media?.url
+            ? `<img src="${unit.media.url}" alt="Native Display" />`
+            : ""
+        }
+        ${
+          unit.cta?.text
+            ? `<button type="button">${unit.cta.text}</button>`
+            : ""
+        }
+      </div>
+    `;
   }
 }
 
