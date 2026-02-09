@@ -45,14 +45,17 @@ class TodoApp extends HTMLElement {
     }
 
     window.clevertap = {
-      event: [],
-      profile: [],
-      account: [],
-      onUserLogin: [],
-      notifications: [],
-      privacy: [],
-      region: "us1"
-    };
+  event: [],
+  profile: [],
+  account: [],
+  onUserLogin: [],
+  notifications: [],
+  privacy: [],
+  region: "us1",
+
+  // ✅ REQUIRED FOR NATIVE DISPLAY
+  enableWebNativeDisplay: true
+};
 
     // ✅ REQUIRED
     window.clevertap.notifications.push({
@@ -129,8 +132,10 @@ class TodoApp extends HTMLElement {
 
     this.clevertap.event.push("User Logged In");
 
-    // ✅ THIS IS THE MISSING PIECE
-    this.clevertap.getAllNativeDisplay();
+    if (this.clevertap?.getAllNativeDisplay) {
+  this.clevertap.getAllNativeDisplay();
+}
+
   }
 
   this.render();
