@@ -31,10 +31,7 @@ class TodoApp extends HTMLElement {
       // Load CleverTap SDK
       this.clevertap = await this.loadCleverTap();
 
-      // Initialize CleverTap account
-      this.clevertap.account.push({
-        id: "848-6W6-WR7Z" // 👈 replace this
-      });
+
 
       this.ctInitialized = true;
 
@@ -46,12 +43,13 @@ class TodoApp extends HTMLElement {
 
   /* ---------- CLEVERTAP LOADER ---------- */
 
-  loadCleverTap() {
+ loadCleverTap() {
   return new Promise((resolve) => {
-    if (window.clevertap) {
+    if (window.clevertap && window.clevertap.account?.length) {
       return resolve(window.clevertap);
     }
 
+    // 1️⃣ Create clevertap object
     window.clevertap = {
       event: [],
       profile: [],
@@ -59,9 +57,15 @@ class TodoApp extends HTMLElement {
       onUserLogin: [],
       notifications: [],
       privacy: [],
-      region: "us1" // ✅ correct for US
+      region: "us1" // ✅ US account
     };
 
+    // 2️⃣ PUSH ACCOUNT ID BEFORE SDK LOAD (THIS IS KEY)
+    window.clevertap.account.push({
+      id: "848-6W6-WR7Z"
+    });
+
+    // 3️⃣ Load correct SDK
     const script = document.createElement("script");
     script.type = "text/javascript";
     script.async = true;
@@ -75,6 +79,7 @@ class TodoApp extends HTMLElement {
     document.head.appendChild(script);
   });
 }
+
 
 
   /* ---------- RENDER ---------- */
