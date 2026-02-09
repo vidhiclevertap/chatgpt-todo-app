@@ -68,8 +68,8 @@ class TodoApp extends HTMLElement {
 
     const s = document.createElement("script");
     s.async = true;
-    s.src =
-      "https://d2r1yp2w7bby2u.cloudfront.net/js/clevertap.min.js";
+    s.src = "https://d2r1yp2w7bby2u.cloudfront.net/js/clevertap_native_display.min.js";
+
 
     s.onload = () => {
       // ✅ REQUIRED: fetch native display payloads
