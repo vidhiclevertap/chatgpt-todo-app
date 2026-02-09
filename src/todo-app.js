@@ -52,7 +52,6 @@ class TodoApp extends HTMLElement {
       return resolve(window.clevertap);
     }
 
-    // Set up the clevertap object with the correct US region
     window.clevertap = {
       event: [],
       profile: [],
@@ -60,19 +59,23 @@ class TodoApp extends HTMLElement {
       onUserLogin: [],
       notifications: [],
       privacy: [],
-      region: "us1" // 👈 correct for US account
+      region: "us1" // ✅ correct for US
     };
 
-    // Load the SDK
     const script = document.createElement("script");
     script.type = "text/javascript";
     script.async = true;
-    script.src = "https://static.clevertap.com/js/a.js";
+    script.src =
+      (document.location.protocol === "https:"
+        ? "https://d2r1yp2w7bby2u.cloudfront.net"
+        : "http://static.clevertap.com") +
+      "/js/clevertap.min.js";
 
     script.onload = () => resolve(window.clevertap);
     document.head.appendChild(script);
   });
 }
+
 
   /* ---------- RENDER ---------- */
 
