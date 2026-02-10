@@ -153,24 +153,21 @@ class TodoApp extends HTMLElement {
       .onclick = () => this.handleAddTodo();
   }
 
+
   handleAddTodo() {
-    const input = this.shadowRoot.getElementById("todo");
-    const value = input.value.trim();
-    if (!value) return;
+  const input = this.shadowRoot.getElementById("todo");
+  const value = input.value.trim();
+  if (!value) return;
 
-    addTodo(value);
-    this.renderTodos();
+  addTodo(value);
+  this.renderTodos();
 
-    this.clevertap.event.push("Todo Added");
+  // ✅ Single event → triggers popup + analytics
+  this.clevertap.event.push("Todo Added");
 
-    // 🔔 Web Popup (once)
-    if (!this.popupTriggered) {
-      this.clevertap.event.push("Todo Created Popup Trigger");
-      this.popupTriggered = true;
-    }
+  input.value = "";
+}
 
-    input.value = "";
-  }
 
   renderTodos() {
     const list = this.shadowRoot.getElementById("list");
