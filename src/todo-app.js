@@ -10,7 +10,6 @@ class TodoApp extends HTMLElement {
 
     this.clevertap = null;
     this.popupTriggered = false;
-    this.nativeRendered = false;
   }
 
   /* ---------- INIT ---------- */
@@ -23,7 +22,7 @@ class TodoApp extends HTMLElement {
 
       this.clevertap = await this.loadCleverTap();
 
-      // ✅ ALWAYS render login first
+      // ✅ Always render login
       this.render();
     } catch (e) {
       console.error("Init failed", e);
@@ -34,9 +33,7 @@ class TodoApp extends HTMLElement {
 
   loadCleverTap() {
     return new Promise(resolve => {
-      if (window.clevertap) {
-        return resolve(window.clevertap);
-      }
+      if (window.clevertap) return resolve(window.clevertap);
 
       window.clevertap = {
         event: [],
@@ -60,6 +57,20 @@ class TodoApp extends HTMLElement {
       s.onload = () => resolve(window.clevertap);
       document.head.appendChild(s);
     });
+  }
+
+  /* ---------- NATIVE DISPLAY (LIGHT DOM) ---------- */
+
+  createNativeSlot() {
+    if (document.querySelector(".native-card")) return;
+
+    const slot = document.createElement("div");
+    slot.className = "native-card";
+    slot.style.maxWidth = "800px";
+    slot.style.margin = "16px auto";
+
+    // Insert ABOVE the app
+    document.body.insertBefore(slot, document.body.firstChild);
   }
 
   /* ---------- RENDER ---------- */
@@ -105,44 +116,16 @@ class TodoApp extends HTMLElement {
 
     this.clevertap.event.push("User Logged In");
 
-    // ✅ Render Todo UI (creates native-card div)
+    // ✅ Create Native Display container (LIGHT DOM)
+    this.createNativeSlot();
+
+    // ✅ Render Todo UI
     this.render();
 
-    // ✅ Register native AFTER SDK + DOM exist
-    this.registerNativeListener();
-
-    // ✅ Fetch native display
-    this.clevertap.getAllNativeDisplay();
-  }
-
-  /* ---------- NATIVE DISPLAY ---------- */
-
-  registerNativeListener() {
-    if (this.nativeRendered) return;
-    if (!this.clevertap.on) return;
-
-    this.clevertap.on("native_display", payload => {
-      if (!payload || !payload.length) return;
-
-      const card = payload[0];
-      const slot = this.shadowRoot.getElementById("native-card");
-      if (!slot) return;
-
-      slot.innerHTML = `
-        <div style="
-          background:#f8f8f8;
-          border:1px solid #ddd;
-          padding:12px;
-          border-radius:8px;
-          margin-bottom:16px;
-        ">
-          <strong>${card.title || ""}</strong>
-          <p>${card.message || ""}</p>
-        </div>
-      `;
-
-      this.nativeRendered = true;
-    });
+    // ✅ Fetch Native Display AFTER identity + DOM
+    setTimeout(() => {
+      this.clevertap.getAllNativeDisplay();
+    }, 300);
   }
 
   /* ---------- TODO ---------- */
@@ -156,9 +139,6 @@ class TodoApp extends HTMLElement {
       <p style="color:#666;">
         Logged in as <b>${this.userEmail}</b>
       </p>
-
-      <!-- Native Display Slot -->
-      <div id="native-card"></div>
 
       <input id="todo" placeholder="New task" />
       <button id="add">Add</button>
