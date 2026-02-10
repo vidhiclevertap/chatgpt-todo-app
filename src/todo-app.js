@@ -8,43 +8,30 @@ class TodoApp extends HTMLElement {
     this.userEmail = null;
     this.css = "";
 
-    // CleverTap
     this.clevertap = null;
-    this.ctInitialized = false;
+    this.ctReady = false;
 
-    // Popup guard
     this.popupTriggered = false;
+    this.nativeRendered = false;
   }
 
   /* ---------- INIT ---------- */
 
   async connectedCallback() {
-    try {
-      this.css = await fetch(
-        new URL("./styles.css", import.meta.url)
-      ).then(res => res.text());
+    this.css = await fetch(
+      new URL("./styles.css", import.meta.url)
+    ).then(r => r.text());
 
-      this.clevertap = await this.loadCleverTap();
-      this.ctInitialized = true;
+    this.clevertap = await this.loadCleverTap();
+    this.ctReady = true;
 
-      // ✅ Native Display setup
-      this.createNativeDisplayContainer();
-      this.listenForNativeDisplay();
-
-      this.render();
-    } catch (e) {
-      console.error("Todo App init failed", e);
-    }
+    this.render();
   }
 
-  /* ---------- CLEVERTAP LOADER ---------- */
+  /* ---------- CLEVERTAP ---------- */
 
   loadCleverTap() {
     return new Promise(resolve => {
-      if (window.clevertap?.account?.length) {
-        return resolve(window.clevertap);
-      }
-
       window.clevertap = {
         event: [],
         profile: [],
@@ -56,55 +43,16 @@ class TodoApp extends HTMLElement {
         enableWebNativeDisplay: true
       };
 
-      window.clevertap.notifications.push({
-        webPush: false
-      });
-
-      window.clevertap.account.push({
-        id: "848-6W6-WR7Z"
-      });
+      window.clevertap.notifications.push({ webPush: false });
+      window.clevertap.account.push({ id: "848-6W6-WR7Z" });
 
       const s = document.createElement("script");
       s.async = true;
       s.src =
         "https://d2r1yp2w7bby2u.cloudfront.net/js/clevertap.min.js";
 
-      s.onload = () => {
-        resolve(window.clevertap);
-      };
-
+      s.onload = () => resolve(window.clevertap);
       document.head.appendChild(s);
-    });
-  }
-
-  /* ---------- NATIVE DISPLAY ---------- */
-
-  createNativeDisplayContainer() {
-    if (document.querySelector(".native-card")) return;
-
-    const div = document.createElement("div");
-    div.className = "native-card";
-    div.style.margin = "16px";
-    div.style.minHeight = "200px";
-
-    // Important: Native Display must be OUTSIDE shadow DOM
-    document.body.prepend(div);
-  }
-
-  listenForNativeDisplay() {
-    this.clevertap.on("native_display", data => {
-      if (!data || !data.length) return;
-
-      const unit = data[0];
-      const container = document.querySelector(".native-card");
-      if (!container) return;
-
-      container.innerHTML = `
-        <img src="${unit.content.imageUrl}" style="max-width:100%" />
-      `;
-
-      // Impression tracking
-      this.clevertap.renderNotificationViewed(unit);
     });
   }
 
@@ -114,13 +62,10 @@ class TodoApp extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <style>${this.css}</style>
       <div id="app"></div>
+      <div id="native-slot"></div>
     `;
 
-    if (!this.userEmail) {
-      this.renderLogin();
-    } else {
-      this.renderTodo();
-    }
+    this.userEmail ? this.renderTodo() : this.renderLogin();
   }
 
   /* ---------- LOGIN ---------- */
@@ -129,40 +74,65 @@ class TodoApp extends HTMLElement {
     const app = this.shadowRoot.getElementById("app");
 
     app.innerHTML = `
-      <h1>🔐 Login</h1>
-      <input id="emailInput" type="email" placeholder="you@example.com" />
-      <button id="loginBtn">Continue</button>
+      <h2>🔐 Login</h2>
+      <input id="email" placeholder="you@example.com" />
+      <button id="login">Continue</button>
     `;
 
     this.shadowRoot
-      .getElementById("loginBtn")
-      .addEventListener("click", () => this.handleLogin());
+      .getElementById("login")
+      .onclick = () => this.handleLogin();
   }
 
   handleLogin() {
     const email = this.shadowRoot
-      .getElementById("emailInput")
+      .getElementById("email")
       .value.trim();
 
-    if (!email || !email.includes("@")) return;
+    if (!email.includes("@")) return;
 
     this.userEmail = email;
 
-    if (this.ctInitialized) {
-      this.clevertap.onUserLogin.push({
-        Site: {
-          Identity: email,
-          Email: email
-        }
-      });
+    this.clevertap.onUserLogin.push({
+      Site: { Identity: email, Email: email }
+    });
 
-      this.clevertap.event.push("User Logged In");
+    this.clevertap.event.push("User Logged In");
 
-      // ✅ Fetch Native Display AFTER login
+    // ⏳ fetch native display AFTER identity
+    setTimeout(() => {
       this.clevertap.getAllNativeDisplay();
-    }
+      this.listenForNative();
+    }, 500);
 
     this.render();
+  }
+
+  /* ---------- NATIVE DISPLAY ---------- */
+
+  listenForNative() {
+    if (this.nativeRendered) return;
+
+    this.clevertap.on("native_display", payload => {
+      if (!payload?.length) return;
+
+      const data = payload[0];
+      const slot = this.shadowRoot.getElementById("native-slot");
+
+      slot.innerHTML = `
+        <div style="
+          border:1px solid #ddd;
+          padding:12px;
+          margin:12px 0;
+          border-radius:8px;
+        ">
+          <b>${data.title}</b>
+          <p>${data.message}</p>
+        </div>
+      `;
+
+      this.nativeRendered = true;
+    });
   }
 
   /* ---------- TODO ---------- */
@@ -171,51 +141,45 @@ class TodoApp extends HTMLElement {
     const app = this.shadowRoot.getElementById("app");
 
     app.innerHTML = `
-      <h1>📝 Todo App</h1>
-      <p>Logged in as <b>${this.userEmail}</b></p>
-
-      <input id="todoInput" placeholder="Add task" />
-      <button id="addTodoBtn">Add</button>
-
-      <ul id="todoList"></ul>
+      <h2>📝 Todo</h2>
+      <input id="todo" placeholder="New task" />
+      <button id="add">Add</button>
+      <ul id="list"></ul>
     `;
 
     this.renderTodos();
 
     this.shadowRoot
-      .getElementById("addTodoBtn")
-      .addEventListener("click", () => this.handleAddTodo());
+      .getElementById("add")
+      .onclick = () => this.handleAddTodo();
   }
 
   handleAddTodo() {
-    const input = this.shadowRoot.getElementById("todoInput");
+    const input = this.shadowRoot.getElementById("todo");
     const value = input.value.trim();
     if (!value) return;
 
     addTodo(value);
+    this.renderTodos();
 
-    // Analytics
-    this.clevertap?.event.push("Todo Added", {
-      task: value
-    });
+    this.clevertap.event.push("Todo Added");
 
-    // Web Popup trigger (once)
+    // 🔔 Web Popup trigger
     if (!this.popupTriggered) {
-      this.clevertap?.event.push("Todo Created Popup Trigger");
+      this.clevertap.event.push("Todo Created Popup Trigger");
       this.popupTriggered = true;
     }
 
     input.value = "";
-    this.renderTodos();
   }
 
   renderTodos() {
-    const list = this.shadowRoot.getElementById("todoList");
+    const list = this.shadowRoot.getElementById("list");
     list.innerHTML = "";
 
-    getTodos().forEach(todo => {
+    getTodos().forEach(t => {
       const li = document.createElement("li");
-      li.textContent = todo.text;
+      li.textContent = t.text;
       list.appendChild(li);
     });
   }
