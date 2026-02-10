@@ -9,8 +9,6 @@ class TodoApp extends HTMLElement {
     this.css = "";
 
     this.clevertap = null;
-    this.ctReady = false;
-
     this.popupTriggered = false;
     this.nativeRendered = false;
   }
@@ -18,24 +16,25 @@ class TodoApp extends HTMLElement {
   /* ---------- INIT ---------- */
 
   async connectedCallback() {
-    this.css = await fetch(
-      new URL("./styles.css", import.meta.url)
-    ).then(r => r.text());
+    try {
+      this.css = await fetch(
+        new URL("./styles.css", import.meta.url)
+      ).then(r => r.text());
 
-    this.clevertap = await this.loadCleverTap();
-    this.ctReady = true;
+      this.clevertap = await this.loadCleverTap();
 
-    // ✅ Register native listener ONCE, early
-    this.registerNativeListener();
-
-    this.render();
+      // ✅ ALWAYS render login first
+      this.render();
+    } catch (e) {
+      console.error("Init failed", e);
+    }
   }
 
   /* ---------- CLEVERTAP ---------- */
 
   loadCleverTap() {
     return new Promise(resolve => {
-      if (window.clevertap?.account?.length) {
+      if (window.clevertap) {
         return resolve(window.clevertap);
       }
 
@@ -63,41 +62,12 @@ class TodoApp extends HTMLElement {
     });
   }
 
-  /* ---------- NATIVE DISPLAY ---------- */
-
-  registerNativeListener() {
-    this.clevertap.on("native_display", payload => {
-      if (this.nativeRendered) return;
-      if (!payload || !payload.length) return;
-
-      const data = payload[0];
-      const slot = this.shadowRoot.getElementById("native-card");
-      if (!slot) return;
-
-      slot.innerHTML = `
-        <div style="
-          background:#f8f8f8;
-          border:1px solid #ddd;
-          padding:12px;
-          border-radius:8px;
-          margin-bottom:16px;
-        ">
-          <strong>${data.title || ""}</strong>
-          <p>${data.message || ""}</p>
-        </div>
-      `;
-
-      this.nativeRendered = true;
-    });
-  }
-
   /* ---------- RENDER ---------- */
 
   render() {
     this.shadowRoot.innerHTML = `
       <style>${this.css}</style>
       <div id="app"></div>
-      ${this.userEmail ? `<div id="native-card"></div>` : ``}
     `;
 
     this.userEmail ? this.renderTodo() : this.renderLogin();
@@ -128,17 +98,51 @@ class TodoApp extends HTMLElement {
 
     this.userEmail = email;
 
+    // ✅ Identify user
     this.clevertap.onUserLogin.push({
       Site: { Identity: email, Email: email }
     });
 
     this.clevertap.event.push("User Logged In");
 
-    // Render UI first so native div exists
+    // ✅ Render Todo UI (creates native-card div)
     this.render();
 
-    // Fetch native display AFTER identity + DOM
+    // ✅ Register native AFTER SDK + DOM exist
+    this.registerNativeListener();
+
+    // ✅ Fetch native display
     this.clevertap.getAllNativeDisplay();
+  }
+
+  /* ---------- NATIVE DISPLAY ---------- */
+
+  registerNativeListener() {
+    if (this.nativeRendered) return;
+    if (!this.clevertap.on) return;
+
+    this.clevertap.on("native_display", payload => {
+      if (!payload || !payload.length) return;
+
+      const card = payload[0];
+      const slot = this.shadowRoot.getElementById("native-card");
+      if (!slot) return;
+
+      slot.innerHTML = `
+        <div style="
+          background:#f8f8f8;
+          border:1px solid #ddd;
+          padding:12px;
+          border-radius:8px;
+          margin-bottom:16px;
+        ">
+          <strong>${card.title || ""}</strong>
+          <p>${card.message || ""}</p>
+        </div>
+      `;
+
+      this.nativeRendered = true;
+    });
   }
 
   /* ---------- TODO ---------- */
@@ -152,6 +156,9 @@ class TodoApp extends HTMLElement {
       <p style="color:#666;">
         Logged in as <b>${this.userEmail}</b>
       </p>
+
+      <!-- Native Display Slot -->
+      <div id="native-card"></div>
 
       <input id="todo" placeholder="New task" />
       <button id="add">Add</button>
@@ -176,7 +183,7 @@ class TodoApp extends HTMLElement {
 
     this.clevertap.event.push("Todo Added");
 
-    // 🔔 Web Popup trigger (once)
+    // 🔔 Web Popup (once)
     if (!this.popupTriggered) {
       this.clevertap.event.push("Todo Created Popup Trigger");
       this.popupTriggered = true;
