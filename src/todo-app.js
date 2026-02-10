@@ -1,7 +1,4 @@
-import {
-  addTodo,
-  getTodos
-} from "./todo-store.js";
+import { addTodo, getTodos } from "./todo-store.js";
 
 class TodoApp extends HTMLElement {
   constructor() {
@@ -15,7 +12,7 @@ class TodoApp extends HTMLElement {
     this.clevertap = null;
     this.ctInitialized = false;
 
-    // 🔑 Popup guard (important)
+    // Popup guard
     this.popupTriggered = false;
   }
 
@@ -30,6 +27,10 @@ class TodoApp extends HTMLElement {
       this.clevertap = await this.loadCleverTap();
       this.ctInitialized = true;
 
+      // ✅ Native Display setup
+      this.createNativeDisplayContainer();
+      this.listenForNativeDisplay();
+
       this.render();
     } catch (e) {
       console.error("Todo App init failed", e);
@@ -39,49 +40,73 @@ class TodoApp extends HTMLElement {
   /* ---------- CLEVERTAP LOADER ---------- */
 
   loadCleverTap() {
-  return new Promise(resolve => {
-    if (window.clevertap?.account?.length) {
-      return resolve(window.clevertap);
-    }
+    return new Promise(resolve => {
+      if (window.clevertap?.account?.length) {
+        return resolve(window.clevertap);
+      }
 
-    window.clevertap = {
-  event: [],
-  profile: [],
-  account: [],
-  onUserLogin: [],
-  notifications: [],
-  privacy: [],
-  region: "us1",
+      window.clevertap = {
+        event: [],
+        profile: [],
+        account: [],
+        onUserLogin: [],
+        notifications: [],
+        privacy: [],
+        region: "us1",
+        enableWebNativeDisplay: true
+      };
 
-  // ✅ REQUIRED FOR NATIVE DISPLAY
-  enableWebNativeDisplay: true
-};
+      window.clevertap.notifications.push({
+        webPush: false
+      });
 
-    // ✅ REQUIRED
-    window.clevertap.notifications.push({
-      webPush: false
+      window.clevertap.account.push({
+        id: "848-6W6-WR7Z"
+      });
+
+      const s = document.createElement("script");
+      s.async = true;
+      s.src =
+        "https://d2r1yp2w7bby2u.cloudfront.net/js/clevertap.min.js";
+
+      s.onload = () => {
+        resolve(window.clevertap);
+      };
+
+      document.head.appendChild(s);
     });
+  }
 
-    window.clevertap.account.push({
-      id: "848-6W6-WR7Z"
+  /* ---------- NATIVE DISPLAY ---------- */
+
+  createNativeDisplayContainer() {
+    if (document.querySelector(".native-card")) return;
+
+    const div = document.createElement("div");
+    div.className = "native-card";
+    div.style.margin = "16px";
+    div.style.minHeight = "200px";
+
+    // Important: Native Display must be OUTSIDE shadow DOM
+    document.body.prepend(div);
+  }
+
+  listenForNativeDisplay() {
+    this.clevertap.on("native_display", data => {
+      if (!data || !data.length) return;
+
+      const unit = data[0];
+      const container = document.querySelector(".native-card");
+      if (!container) return;
+
+      container.innerHTML = `
+        <img src="${unit.content.imageUrl}" style="max-width:100%" />
+      `;
+
+      // Impression tracking
+      this.clevertap.renderNotificationViewed(unit);
     });
-
-    const s = document.createElement("script");
-    s.async = true;
-    s.src = "https://d2r1yp2w7bby2u.cloudfront.net/js/clevertap.min.js";
-
-
-
-    s.onload = () => {
-      // ✅ REQUIRED: fetch native display payloads
-      window.clevertap.getAllNativeDisplay?.();
-      resolve(window.clevertap);
-    };
-
-    document.head.appendChild(s);
-  });
-}
- 
+  }
 
   /* ---------- RENDER ---------- */
 
@@ -115,33 +140,30 @@ class TodoApp extends HTMLElement {
   }
 
   handleLogin() {
-  const email = this.shadowRoot
-    .getElementById("emailInput")
-    .value.trim();
+    const email = this.shadowRoot
+      .getElementById("emailInput")
+      .value.trim();
 
-  if (!email || !email.includes("@")) return;
+    if (!email || !email.includes("@")) return;
 
-  this.userEmail = email;
+    this.userEmail = email;
 
-  if (this.ctInitialized) {
-    this.clevertap.onUserLogin.push({
-      Site: {
-        Identity: email,
-        Email: email
-      }
-    });
+    if (this.ctInitialized) {
+      this.clevertap.onUserLogin.push({
+        Site: {
+          Identity: email,
+          Email: email
+        }
+      });
 
-    this.clevertap.event.push("User Logged In");
+      this.clevertap.event.push("User Logged In");
 
-    if (this.clevertap?.getAllNativeDisplay) {
-  this.clevertap.getAllNativeDisplay();
-}
+      // ✅ Fetch Native Display AFTER login
+      this.clevertap.getAllNativeDisplay();
+    }
 
+    this.render();
   }
-
-  this.render();
-}
-
 
   /* ---------- TODO ---------- */
 
@@ -172,12 +194,12 @@ class TodoApp extends HTMLElement {
 
     addTodo(value);
 
-    // 📊 Analytics event
+    // Analytics
     this.clevertap?.event.push("Todo Added", {
       task: value
     });
 
-    // ⭐ Web Popup trigger (ONLY ONCE)
+    // Web Popup trigger (once)
     if (!this.popupTriggered) {
       this.clevertap?.event.push("Todo Created Popup Trigger");
       this.popupTriggered = true;
